@@ -1,0 +1,68 @@
+services:
+  mariadb:
+    container_name: tavanastore_blog_db
+    image: mariadb:latest
+    command: '--default-authentication-plugin=mysql_native_password'
+    volumes:
+      - ./db_data/:/var/lib/mysql
+    restart: always
+    environment:
+      - MYSQL_ROOT_PASSWORD=wordpress
+      - MYSQL_DATABASE=wordpress
+      - MYSQL_USER=wordpress
+      - MYSQL_PASSWORD=wordpress
+    expose:
+      - 3306
+    networks:
+      app-internal-networks:
+        aliases:
+          - mariadb
+
+  phpmyadmin:
+    container_name: tavanastore_blog_db_admin
+    image: phpmyadmin:latest
+    restart: always
+    depends_on:
+      - mariadb
+    volumes:
+      - ./volumes/custom-apache-config.conf:/etc/apache2/conf-enabled/custom-apache-config.conf
+    ports:
+      - 9875:80
+    environment:
+      PMA_HOST: mariadb
+      PMA_PORT: 3306
+      MYSQL_ROOT_PASSWORD: wordpress
+    networks:
+      app-internal-networks:
+        aliases:
+          - phpmyadmin
+          
+  wordpress:
+    container_name: tavanastore_blog_web
+    image: wordpress:latest
+    volumes:
+      - ./volumes/.htaccess:/var/www/html/.htaccess
+      - ./volumes/wp-config.php:/var/www/html/wp-config.php
+      - ./volumes/custom-apache-config.conf:/etc/apache2/conf-enabled/custom-apache-config.conf
+      - ./httpdocs/blog/:/var/www/html
+    ports:
+      - 9876:80
+    restart: always
+    depends_on:
+      - mariadb
+    environment:
+      - WORDPRESS_DEBUG=1
+      - WORDPRESS_DB_HOST=mariadb
+      - WORDPRESS_DB_USER=wordpress
+      - WORDPRESS_DB_PASSWORD=wordpress
+      - WORDPRESS_DB_NAME=wordpress
+      - WP_HOME=http://localhost:9876
+      - WP_SITEURL=http://localhost:9876
+    networks:
+      app-internal-networks:
+        aliases:
+          - wordpress
+
+networks:
+  app-internal-networks:
+    driver: bridge
